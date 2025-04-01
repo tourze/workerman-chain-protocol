@@ -1,0 +1,17 @@
+{
+  "name": "tourze/workerman-chain-protocol",
+  "description": "链式协议处理",
+  "license": "MIT",
+  "require": {
+    "php": "^8.1",
+    "psr/log": "^3|^2|^1",
+    "phpunit/php-timer": "^6.0.0",
+    "symfony/event-dispatcher": "^6.4",
+    "workerman/workerman": "^5.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Tourze\\Workerman\\ChainProtocol\\": "src"
+    }
+  }
+}
