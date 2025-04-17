@@ -6,6 +6,7 @@
     "php": "^8.1",
     "psr/log": "^3|^2|^1",
     "phpunit/php-timer": "^6.0.0",
+    "symfony/event-dispatcher-contracts": "^2.5 | ^3",
     "symfony/event-dispatcher": "^6.4",
     "workerman/workerman": "^5.1"
   },
