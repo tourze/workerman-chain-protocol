@@ -3,10 +3,14 @@
 namespace Tourze\Workerman\ChainProtocol;
 
 use SebastianBergmann\Timer\Timer;
+use Tourze\Workerman\ChainProtocol\Context\ChainDecodeContext;
+use Tourze\Workerman\ChainProtocol\Context\ChainEncodeContext;
+use Tourze\Workerman\ChainProtocol\Context\ProtocolRecvBuffersContext;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataDecodedEvent;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataDecodingEvent;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataEncodedEvent;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataInputEvent;
+use Tourze\Workerman\ConnectionContext\ContextContainer;
 use Workerman\Connection\ConnectionInterface;
 use Workerman\Connection\TcpConnection;
 use Workerman\Connection\UdpConnection;
@@ -35,7 +39,10 @@ class ChainProtocol implements ProtocolInterface
         $length = strlen($buffer);
 
         // 记录初始收到的数据
-        $connection->_chainDecodeInitBuffer = $connection->_chainDecodeLastBuffer = $buffer;
+        $decodeContext = new ChainDecodeContext();
+        $decodeContext->initBuffer = $buffer;
+        $decodeContext->lastBuffer = $buffer;
+        ContextContainer::getInstance()->setContext($connection, $decodeContext);
 
         $event = new ChainDataDecodingEvent($buffer, $connection);
         Container::getEventDispatcher($connection)?->dispatch($event);
@@ -50,8 +57,12 @@ class ChainProtocol implements ProtocolInterface
                 Container::getLogger($connection)?->debug("{$parser}开始decode", [
                     'connection' => $connection,
                 ]);
-                $buffer = static::handleProtocol($parser, $connection, $buffer);
-                $connection->_chainDecodeLastBuffer = $buffer; // 记录上次解密结果
+                $buffer = self::handleProtocol($parser, $connection, $buffer);
+                // 记录上次解密结果
+                $decodeContext = ContextContainer::getInstance()->getContext($connection, ChainDecodeContext::class);
+                assert($decodeContext instanceof ChainDecodeContext);
+                $decodeContext->lastBuffer = $buffer;
+                ContextContainer::getInstance()->setContext($connection, $decodeContext);
                 Container::getLogger($connection)?->debug("{$parser}::decoded", [
                     'recv_buffer' => $buffer,
                     'connection' => $connection,
@@ -71,8 +82,8 @@ class ChainProtocol implements ProtocolInterface
                 }
             }
         } finally {
-            unset($connection->_chainDecodeInitBuffer);
-            unset($connection->_chainDecodeLastBuffer);
+            // 清理解码上下文
+            ContextContainer::getInstance()->clearContext($connection, ChainDecodeContext::class);
 
             $duration = $timer->stop();
             Container::getLogger($connection)?->info('入站连接数据decode完成', [
@@ -103,19 +114,22 @@ class ChainProtocol implements ProtocolInterface
             return $protocol::decode($buffer, $connection);
         }
 
-        if (!isset($connection->_protocolRecvBuffers)) {
-            $connection->_protocolRecvBuffers = [];
+        $recvBuffersContext = ContextContainer::getInstance()->getContext($connection, ProtocolRecvBuffersContext::class);
+        if (!$recvBuffersContext instanceof ProtocolRecvBuffersContext) {
+            $recvBuffersContext = new ProtocolRecvBuffersContext();
+            ContextContainer::getInstance()->setContext($connection, $recvBuffersContext);
         }
-        if (!isset($connection->_protocolRecvBuffers[$protocol])) {
-            $connection->_protocolRecvBuffers[$protocol] = '';
+        if (!isset($recvBuffersContext->buffers[$protocol])) {
+            $recvBuffersContext->buffers[$protocol] = '';
         }
 
         // 结果
         $result = '';
 
         // 上次没处理完的数据，我们合并过来一起处理
-        $buffer = $connection->_protocolRecvBuffers[$protocol] . $buffer;
-        $connection->_protocolRecvBuffers[$protocol] = '';
+        $buffer = $recvBuffersContext->buffers[$protocol] . $buffer;
+        $recvBuffersContext->buffers[$protocol] = '';
+        ContextContainer::getInstance()->setContext($connection, $recvBuffersContext);
 
         while (strlen($buffer) > 0) {
             $requestLen = $protocol::input($buffer, $connection);
@@ -124,7 +138,8 @@ class ChainProtocol implements ProtocolInterface
             ]);
             if ($requestLen === 0) {
                 // 还需要等待数据
-                $connection->_protocolRecvBuffers[$protocol] = $buffer;
+                $recvBuffersContext->buffers[$protocol] = $buffer;
+                ContextContainer::getInstance()->setContext($connection, $recvBuffersContext);
                 Container::getLogger($connection)?->debug("{$protocol}还需要等待数据", [
                     'connection' => $connection,
                 ]);
@@ -134,7 +149,8 @@ class ChainProtocol implements ProtocolInterface
             // 如果长度不够，那我们就等待新数据来了再说
             $currentLen = strlen($buffer);
             if ($currentLen < $requestLen) {
-                $connection->_protocolRecvBuffers[$protocol] = $buffer;
+                $recvBuffersContext->buffers[$protocol] = $buffer;
+                ContextContainer::getInstance()->setContext($connection, $recvBuffersContext);
                 Container::getLogger($connection)?->info("{$protocol}期望数据长度{$requestLen}，实际只有{$currentLen}，waiting", [
                     'resultLen' => strlen($result),
                     'connection' => $connection,
@@ -167,7 +183,10 @@ class ChainProtocol implements ProtocolInterface
         ]);
 
         // 记录初始收到的数据
-        $connection->_chainEncodeInitBuffer = $connection->_chainEncodeLastBuffer = $data;
+        $encodeContext = new ChainEncodeContext();
+        $encodeContext->initBuffer = $data;
+        $encodeContext->lastBuffer = $data;
+        ContextContainer::getInstance()->setContext($connection, $encodeContext);
 
         $timer = new Timer;
         $timer->start();
@@ -195,8 +214,8 @@ class ChainProtocol implements ProtocolInterface
                 }
             }
         } finally {
-            unset($connection->_chainEncodeInitBuffer);
-            unset($connection->_chainEncodeLastBuffer);
+            // 清理编码上下文
+            ContextContainer::getInstance()->clearContext($connection, ChainEncodeContext::class);
 
             $duration = $timer->stop();
             Container::getLogger($connection)?->info('出站连接数据encode完成', [

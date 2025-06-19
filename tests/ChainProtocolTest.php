@@ -43,14 +43,14 @@ class ChainProtocolTest extends TestCase
         // 设置静态属性
         Container::$logger = $logger;
         Container::$eventDispatcher = $dispatcher;
-        Container::$decodeProtocols = ['ProtocolA', 'ProtocolB'];
-        Container::$encodeProtocols = ['ProtocolB', 'ProtocolA'];
+        Container::$decodeProtocols = [\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class];
+        Container::$encodeProtocols = [\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class];
 
         // 验证 getter 方法
         $this->assertSame($logger, Container::getLogger($connection));
         $this->assertSame($dispatcher, Container::getEventDispatcher($connection));
-        $this->assertSame(['ProtocolA', 'ProtocolB'], Container::getDecodeProtocols($connection));
-        $this->assertSame(['ProtocolB', 'ProtocolA'], Container::getEncodeProtocols($connection));
+        $this->assertSame([\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class], Container::getDecodeProtocols($connection));
+        $this->assertSame([\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class], Container::getEncodeProtocols($connection));
     }
 
     /**

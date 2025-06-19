@@ -58,10 +58,10 @@ class ContainerTest extends TestCase
      */
     public function testDecodeProtocolsAccessors(): void
     {
-        Container::$decodeProtocols = ['Protocol1', 'Protocol2'];
+        Container::$decodeProtocols = [\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class];
 
         $connection = $this->createStub(TcpConnection::class);
-        $this->assertEquals(['Protocol1', 'Protocol2'], Container::getDecodeProtocols($connection));
+        $this->assertEquals([\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class], Container::getDecodeProtocols($connection));
     }
 
     /**
@@ -69,10 +69,10 @@ class ContainerTest extends TestCase
      */
     public function testEncodeProtocolsAccessors(): void
     {
-        Container::$encodeProtocols = ['Protocol2', 'Protocol1'];
+        Container::$encodeProtocols = [\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class];
 
         $connection = $this->createStub(TcpConnection::class);
-        $this->assertEquals(['Protocol2', 'Protocol1'], Container::getEncodeProtocols($connection));
+        $this->assertEquals([\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class], Container::getEncodeProtocols($connection));
     }
 
     /**
@@ -81,21 +81,29 @@ class ContainerTest extends TestCase
     public function testProtocolOrder(): void
     {
         // 测试解码和编码协议的顺序
-        Container::$decodeProtocols = ['First', 'Second', 'Third'];
-        Container::$encodeProtocols = ['Third', 'Second', 'First'];
+        Container::$decodeProtocols = [
+            \Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockFirstProtocol::class,
+            \Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockSecondProtocol::class,
+            \Workerman\Protocols\Text::class
+        ];
+        Container::$encodeProtocols = [
+            \Workerman\Protocols\Text::class,
+            \Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockSecondProtocol::class,
+            \Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockFirstProtocol::class
+        ];
 
         $connection = $this->createStub(TcpConnection::class);
 
         // 验证解码顺序
         $decodeProtocols = Container::getDecodeProtocols($connection);
-        $this->assertEquals('First', $decodeProtocols[0]);
-        $this->assertEquals('Second', $decodeProtocols[1]);
-        $this->assertEquals('Third', $decodeProtocols[2]);
+        $this->assertEquals(\Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockFirstProtocol::class, $decodeProtocols[0]);
+        $this->assertEquals(\Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockSecondProtocol::class, $decodeProtocols[1]);
+        $this->assertEquals(\Workerman\Protocols\Text::class, $decodeProtocols[2]);
 
         // 验证编码顺序
         $encodeProtocols = Container::getEncodeProtocols($connection);
-        $this->assertEquals('Third', $encodeProtocols[0]);
-        $this->assertEquals('Second', $encodeProtocols[1]);
-        $this->assertEquals('First', $encodeProtocols[2]);
+        $this->assertEquals(\Workerman\Protocols\Text::class, $encodeProtocols[0]);
+        $this->assertEquals(\Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockSecondProtocol::class, $encodeProtocols[1]);
+        $this->assertEquals(\Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockFirstProtocol::class, $encodeProtocols[2]);
     }
 }
