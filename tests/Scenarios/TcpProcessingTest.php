@@ -7,8 +7,10 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Tourze\Workerman\ChainProtocol\ChainProtocol;
 use Tourze\Workerman\ChainProtocol\Container;
+use Tourze\Workerman\ChainProtocol\Context\ProtocolRecvBuffersContext;
 use Tourze\Workerman\ChainProtocol\Tests\Scenarios\Protocol\BufferCacheProtocol;
 use Tourze\Workerman\ChainProtocol\Tests\Scenarios\Protocol\LengthProtocol;
+use Tourze\Workerman\ConnectionContext\ContextContainer;
 use Workerman\Connection\TcpConnection;
 
 /**
@@ -27,6 +29,9 @@ class TcpProcessingTest extends TestCase
         Container::$eventDispatcher = null;
         Container::$decodeProtocols = [];
         Container::$encodeProtocols = [];
+
+        // 重置连接上下文容器
+        ContextContainer::resetInstance();
 
         // 设置日志和事件分发器
         Container::$logger = $this->createStub(LoggerInterface::class);
@@ -53,8 +58,9 @@ class TcpProcessingTest extends TestCase
             LengthProtocol::class,
         ];
 
-        // 初始化连接属性
-        $connection->_protocolRecvBuffers = [];
+        // 初始化连接上下文
+        $context = new ProtocolRecvBuffersContext();
+        ContextContainer::getInstance()->setContext($connection, $context);
 
         // 模拟第一个不完整数据包 (模拟收到了包头部分)
         $firstChunk = pack('N', 20) . 'part1'; // 4字节长度头 + 5字节内容，但完整包应该是20字节
