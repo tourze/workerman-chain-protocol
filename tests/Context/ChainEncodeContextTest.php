@@ -1,11 +1,16 @@
 <?php
 
-namespace Tourze\Workerman\ChainProtocol\Tests\Unit\Context;
+namespace Tourze\Workerman\ChainProtocol\Tests\Context;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Tourze\Workerman\ChainProtocol\Context\ChainEncodeContext;
 
-class ChainEncodeContextTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ChainEncodeContext::class)]
+final class ChainEncodeContextTest extends TestCase
 {
     public function testCanBeInstantiated(): void
     {

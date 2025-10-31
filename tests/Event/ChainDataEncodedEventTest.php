@@ -1,19 +1,26 @@
 <?php
 
-namespace Tourze\Workerman\ChainProtocol\Tests\Unit\Event;
+namespace Tourze\Workerman\ChainProtocol\Tests\Event;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Contracts\EventDispatcher\Event;
+use Tourze\PHPUnitSymfonyUnitTest\AbstractEventTestCase;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataEncodedEvent;
 use Workerman\Connection\ConnectionInterface;
 
-class ChainDataEncodedEventTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ChainDataEncodedEvent::class)]
+final class ChainDataEncodedEventTest extends AbstractEventTestCase
 {
     private ConnectionInterface $connection;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->connection = $this->createStub(ConnectionInterface::class);
+
+        $this->connection = self::createStub(ConnectionInterface::class);
     }
 
     public function testCanBeInstantiated(): void
@@ -26,7 +33,7 @@ class ChainDataEncodedEventTest extends TestCase
     {
         $buffer = 'encoded data';
         $event = new ChainDataEncodedEvent($buffer, $this->connection);
-        
+
         $this->assertEquals($buffer, $event->getBuffer());
     }
 
@@ -34,7 +41,7 @@ class ChainDataEncodedEventTest extends TestCase
     {
         $event = new ChainDataEncodedEvent('initial', $this->connection);
         $newBuffer = 'modified encoded data';
-        
+
         $event->setBuffer($newBuffer);
         $this->assertEquals($newBuffer, $event->getBuffer());
     }
@@ -42,14 +49,14 @@ class ChainDataEncodedEventTest extends TestCase
     public function testGetConnection(): void
     {
         $event = new ChainDataEncodedEvent('test', $this->connection);
-        
+
         $this->assertSame($this->connection, $event->getConnection());
     }
 
     public function testIsEvent(): void
     {
         $event = new ChainDataEncodedEvent('test', $this->connection);
-        
-        $this->assertInstanceOf(\Symfony\Contracts\EventDispatcher\Event::class, $event);
+
+        $this->assertInstanceOf(Event::class, $event);
     }
 }

@@ -1,19 +1,21 @@
 {
   "name": "tourze/workerman-chain-protocol",
-  "description": "链式协议处理",
+  "description": "Workerman 链式协议处理器，支持多层协议栈处理数据编解码",
   "license": "MIT",
   "require": {
-    "php": "^8.1",
-    "phpunit/php-timer": "^6.0.0",
+    "phpunit/php-timer": "^7.0",
     "psr/log": "^3|^2|^1",
-    "symfony/event-dispatcher": "^6.4",
-    "symfony/event-dispatcher-contracts": "^2.5 | ^3",
+    "symfony/event-dispatcher": "^7.3",
+    "symfony/event-dispatcher-contracts": "^3",
     "tourze/workerman-connection-context": "0.0.*",
     "workerman/workerman": "^5.1"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",
-    "phpunit/phpunit": "^10.0"
+    "phpunit/phpunit": "^11.5",
+    "symfony/framework-bundle": "^7.3",
+    "tourze/phpunit-symfony-unit-test": "1.*",
+    "tourze/symfony-testing-framework": "0.0.*"
   },
   "autoload": {
     "psr-4": {

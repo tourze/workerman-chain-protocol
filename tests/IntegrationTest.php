@@ -1,7 +1,8 @@
 <?php
 
-namespace Tourze\Workerman\ChainProtocol\Tests\Integration;
+namespace Tourze\Workerman\ChainProtocol\Tests;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -10,12 +11,13 @@ use Tourze\Workerman\ChainProtocol\Container;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataEncodedEvent;
 use Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockFirstProtocol;
 use Tourze\Workerman\ChainProtocol\Tests\Integration\Protocol\MockSecondProtocol;
-use Workerman\Connection\TcpConnection;
+use Workerman\Connection\ConnectionInterface;
 
 /**
- * 集成测试
+ * @internal
  */
-class IntegrationTest extends TestCase
+#[CoversClass(ChainProtocol::class)]
+final class IntegrationTest extends TestCase
 {
     protected EventDispatcher $eventDispatcher;
 
@@ -41,8 +43,7 @@ class IntegrationTest extends TestCase
     {
         // 创建模拟连接和日志
         $logger = $this->createMock(LoggerInterface::class);
-        $connection = $this->createStub(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = self::createStub(ConnectionInterface::class);
 
         // 设置容器
         Container::$logger = $logger;
@@ -70,15 +71,14 @@ class IntegrationTest extends TestCase
     public function testEventListening(): void
     {
         // 创建模拟连接
-        $connection = $this->createStub(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = self::createStub(ConnectionInterface::class);
 
         // 设置协议链
         Container::$encodeProtocols = [MockFirstProtocol::class];
 
         // 收集事件数据
         $capturedData = null;
-        $this->eventDispatcher->addListener(ChainDataEncodedEvent::class, function (ChainDataEncodedEvent $event) use (&$capturedData) {
+        $this->eventDispatcher->addListener(ChainDataEncodedEvent::class, function (ChainDataEncodedEvent $event) use (&$capturedData): void {
             $capturedData = $event->getBuffer();
             // 修改返回值
             $event->setBuffer('modified-' . $capturedData);
@@ -99,8 +99,7 @@ class IntegrationTest extends TestCase
     public function testRealWorldScenario(): void
     {
         // 创建模拟TcpConnection
-        $connection = $this->createStub(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = self::createStub(ConnectionInterface::class);
 
         // 设置协议链
         Container::$decodeProtocols = [
@@ -121,7 +120,7 @@ class IntegrationTest extends TestCase
         $this->assertEquals('second-protocol:first-protocol:raw-packet-data', $decoded);
 
         // 模拟业务处理，生成响应
-        $response = "response-for-$decoded";
+        $response = "response-for-{$decoded}";
 
         // 模拟编码过程
         $encoded = ChainProtocol::encode($response, $connection);

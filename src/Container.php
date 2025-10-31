@@ -32,11 +32,17 @@ class Container
         return static::$eventDispatcher;
     }
 
+    /**
+     * @return class-string[]
+     */
     public static function getDecodeProtocols(ConnectionInterface $connection): array
     {
         return static::$decodeProtocols;
     }
 
+    /**
+     * @return class-string[]
+     */
     public static function getEncodeProtocols(ConnectionInterface $connection): array
     {
         return static::$encodeProtocols;

@@ -2,6 +2,7 @@
 
 namespace Tourze\Workerman\ChainProtocol\Tests\Scenarios;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -11,33 +12,15 @@ use Tourze\Workerman\ChainProtocol\Context\ProtocolRecvBuffersContext;
 use Tourze\Workerman\ChainProtocol\Tests\Scenarios\Protocol\BufferCacheProtocol;
 use Tourze\Workerman\ChainProtocol\Tests\Scenarios\Protocol\LengthProtocol;
 use Tourze\Workerman\ConnectionContext\ContextContainer;
-use Workerman\Connection\TcpConnection;
+use Workerman\Connection\ConnectionInterface;
 
 /**
- * TCP数据处理场景测试
+ * @internal
  */
-class TcpProcessingTest extends TestCase
+#[CoversClass(ChainProtocol::class)]
+final class TcpProcessingTest extends TestCase
 {
     protected EventDispatcher $eventDispatcher;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // 清理容器
-        Container::$logger = null;
-        Container::$eventDispatcher = null;
-        Container::$decodeProtocols = [];
-        Container::$encodeProtocols = [];
-
-        // 重置连接上下文容器
-        ContextContainer::resetInstance();
-
-        // 设置日志和事件分发器
-        Container::$logger = $this->createStub(LoggerInterface::class);
-        $this->eventDispatcher = new EventDispatcher();
-        Container::$eventDispatcher = $this->eventDispatcher;
-    }
 
     /**
      * 测试TCP数据包的分包和粘包处理
@@ -45,8 +28,7 @@ class TcpProcessingTest extends TestCase
     public function testTcpPacketProcessing(): void
     {
         // 创建模拟TcpConnection
-        $connection = $this->createStub(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = self::createStub(ConnectionInterface::class);
 
         // 设置协议链 - 先用长度协议处理分包，再用缓存协议处理业务数据
         Container::$decodeProtocols = [
@@ -73,7 +55,7 @@ class TcpProcessingTest extends TestCase
 
         // 模拟收到剩余数据
         $secondChunk = '-of-incomplete-data';  // 前一个包的剩余部分
-        $protocolClass = \Tourze\Workerman\ChainProtocol\Tests\Scenarios\Protocol\LengthProtocol::class;
+        $protocolClass = LengthProtocol::class;
         // 在测试环境中，由于mock对象的限制，可能没有保存缓冲区数据
         // 我们直接构造完整的测试数据
         $fullBuffer = $firstChunk . $secondChunk;
@@ -88,14 +70,14 @@ class TcpProcessingTest extends TestCase
         $this->assertEquals($expectedBinary, $decoded2);
 
         // 测试模拟响应 - 使用固定响应以避免测试不稳定
-        $response = "response-to-decoded-data";
+        $response = 'response-to-decoded-data';
         $encoded = ChainProtocol::encode($response, $connection);
 
         // 验证响应格式: LengthProtocol会添加4字节长度头
-        $expectedLength = strlen("cached:response-to-decoded-data");
+        $expectedLength = strlen('cached:response-to-decoded-data');
         $expectedHeader = pack('N', $expectedLength);
         $this->assertEquals(
-            $expectedHeader . "cached:response-to-decoded-data",
+            $expectedHeader . 'cached:response-to-decoded-data',
             $encoded
         );
     }

@@ -13,8 +13,7 @@ class ChainDataEncodedEvent extends Event
     public function __construct(
         private string $buffer,
         private readonly ConnectionInterface $connection,
-    )
-    {
+    ) {
     }
 
     public function getBuffer(): string

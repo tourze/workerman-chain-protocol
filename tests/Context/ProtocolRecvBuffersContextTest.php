@@ -1,11 +1,16 @@
 <?php
 
-namespace Tourze\Workerman\ChainProtocol\Tests\Unit\Context;
+namespace Tourze\Workerman\ChainProtocol\Tests\Context;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Tourze\Workerman\ChainProtocol\Context\ProtocolRecvBuffersContext;
 
-class ProtocolRecvBuffersContextTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ProtocolRecvBuffersContext::class)]
+final class ProtocolRecvBuffersContextTest extends TestCase
 {
     public function testCanBeInstantiated(): void
     {
@@ -23,7 +28,7 @@ class ProtocolRecvBuffersContextTest extends TestCase
     {
         $context = new ProtocolRecvBuffersContext();
         $context->buffers = ['protocol1' => 'buffer1', 'protocol2' => 'buffer2'];
-        
+
         $this->assertEquals(['protocol1' => 'buffer1', 'protocol2' => 'buffer2'], $context->buffers);
         $this->assertEquals('buffer1', $context->buffers['protocol1']);
         $this->assertEquals('buffer2', $context->buffers['protocol2']);
@@ -33,7 +38,7 @@ class ProtocolRecvBuffersContextTest extends TestCase
     {
         $context = new ProtocolRecvBuffersContext();
         $context->buffers['test'] = 'test data';
-        
+
         $this->assertCount(1, $context->buffers);
         $this->assertEquals('test data', $context->buffers['test']);
     }

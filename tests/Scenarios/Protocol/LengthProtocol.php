@@ -23,7 +23,11 @@ class LengthProtocol implements ProtocolInterface
         }
 
         // 读取包长
-        $length = unpack('N', $buffer)[1];
+        $unpacked = unpack('N', $buffer);
+        if (false === $unpacked) {
+            return 0;
+        }
+        $length = $unpacked[1];
 
         // 完整包长 = 4字节头部 + 包体长度
         $totalLength = 4 + $length;
@@ -54,6 +58,7 @@ class LengthProtocol implements ProtocolInterface
     {
         // 计算数据长度并在前面添加长度头
         $length = strlen($buffer);
+
         return pack('N', $length) . $buffer;
     }
 }

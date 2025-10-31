@@ -2,6 +2,7 @@
 
 namespace Tourze\Workerman\ChainProtocol\Tests;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -13,23 +14,16 @@ use Tourze\Workerman\ChainProtocol\Event\ChainDataDecodingEvent;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataEncodedEvent;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataInputEvent;
 use Workerman\Connection\ConnectionInterface;
-use Workerman\Connection\TcpConnection;
-use Workerman\Connection\UdpConnection;
+use Workerman\Protocols\Frame;
 use Workerman\Protocols\ProtocolInterface;
+use Workerman\Protocols\Text;
 
-class ChainProtocolTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ChainProtocol::class)]
+final class ChainProtocolTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // 清理测试前的静态属性
-        Container::$logger = null;
-        Container::$eventDispatcher = null;
-        Container::$decodeProtocols = [];
-        Container::$encodeProtocols = [];
-    }
-
     /**
      * 测试 Container 的 getter 和 setter
      */
@@ -43,14 +37,14 @@ class ChainProtocolTest extends TestCase
         // 设置静态属性
         Container::$logger = $logger;
         Container::$eventDispatcher = $dispatcher;
-        Container::$decodeProtocols = [\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class];
-        Container::$encodeProtocols = [\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class];
+        Container::$decodeProtocols = [Text::class, Frame::class];
+        Container::$encodeProtocols = [Frame::class, Text::class];
 
         // 验证 getter 方法
         $this->assertSame($logger, Container::getLogger($connection));
         $this->assertSame($dispatcher, Container::getEventDispatcher($connection));
-        $this->assertSame([\Workerman\Protocols\Text::class, \Workerman\Protocols\Frame::class], Container::getDecodeProtocols($connection));
-        $this->assertSame([\Workerman\Protocols\Frame::class, \Workerman\Protocols\Text::class], Container::getEncodeProtocols($connection));
+        $this->assertSame([Text::class, Frame::class], Container::getDecodeProtocols($connection));
+        $this->assertSame([Frame::class, Text::class], Container::getEncodeProtocols($connection));
     }
 
     /**
@@ -65,13 +59,14 @@ class ChainProtocolTest extends TestCase
         // 设置期望
         $dispatcher->expects($this->once())
             ->method('dispatch')
-            ->with($this->callback(function ($event) use ($connection) {
+            ->with(self::callback(function ($event) use ($connection) {
                 return $event instanceof ChainDataInputEvent
-                    && $event->getBuffer() === 'test-data'
-                    && $event->getLength() === 9
+                    && 'test-data' === $event->getBuffer()
+                    && 9 === $event->getLength()
                     && $event->getConnection() === $connection;
             }))
-            ->willReturnArgument(0);
+            ->willReturnArgument(0)
+        ;
 
         // 设置静态属性
         Container::$eventDispatcher = $dispatcher;
@@ -91,7 +86,7 @@ class ChainProtocolTest extends TestCase
         $connection = $this->createMock(ConnectionInterface::class);
 
         // 设置事件监听器，修改长度
-        $dispatcher->addListener(ChainDataInputEvent::class, function (ChainDataInputEvent $event) {
+        $dispatcher->addListener(ChainDataInputEvent::class, function (ChainDataInputEvent $event): void {
             $event->setLength(5); // 只处理前5个字符
         });
 
@@ -121,12 +116,12 @@ class ChainProtocolTest extends TestCase
 
             public static function decode(string $buffer, ConnectionInterface $connection): string
             {
-                return "decoded:$buffer";
+                return "decoded:{$buffer}";
             }
 
             public static function encode($buffer, ConnectionInterface $connection): string
             {
-                return "encoded:$buffer";
+                return "encoded:{$buffer}";
             }
         };
 
@@ -153,7 +148,7 @@ class ChainProtocolTest extends TestCase
 
             public static function decode(string $buffer, ConnectionInterface $connection): string
             {
-                return "protocol1:$buffer";
+                return "protocol1:{$buffer}";
             }
 
             public static function encode($buffer, ConnectionInterface $connection): string
@@ -170,7 +165,7 @@ class ChainProtocolTest extends TestCase
 
             public static function decode(string $buffer, ConnectionInterface $connection): string
             {
-                return "protocol2:$buffer";
+                return "protocol2:{$buffer}";
             }
 
             public static function encode($buffer, ConnectionInterface $connection): string
@@ -180,8 +175,7 @@ class ChainProtocolTest extends TestCase
         };
 
         // 创建模拟连接对象
-        $connection = $this->createMock(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = $this->createMock(ConnectionInterface::class);
 
         // 设置解码链
         Container::$decodeProtocols = [
@@ -217,7 +211,7 @@ class ChainProtocolTest extends TestCase
 
             public static function encode($buffer, ConnectionInterface $connection): string
             {
-                return "encoded:$buffer";
+                return "encoded:{$buffer}";
             }
         };
 
@@ -249,7 +243,7 @@ class ChainProtocolTest extends TestCase
 
             public static function encode($buffer, ConnectionInterface $connection): string
             {
-                return "protocol1:$buffer";
+                return "protocol1:{$buffer}";
             }
         };
 
@@ -266,13 +260,12 @@ class ChainProtocolTest extends TestCase
 
             public static function encode($buffer, ConnectionInterface $connection): string
             {
-                return "protocol2:$buffer";
+                return "protocol2:{$buffer}";
             }
         };
 
         // 创建模拟连接对象
-        $connection = $this->createMock(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = $this->createMock(ConnectionInterface::class);
 
         // 设置编码链
         Container::$encodeProtocols = [
@@ -300,15 +293,15 @@ class ChainProtocolTest extends TestCase
         $encodedTriggered = false;
 
         // 添加事件监听器
-        $dispatcher->addListener(ChainDataDecodingEvent::class, function (ChainDataDecodingEvent $event) use (&$decodingTriggered) {
+        $dispatcher->addListener(ChainDataDecodingEvent::class, function (ChainDataDecodingEvent $event) use (&$decodingTriggered): void {
             $decodingTriggered = true;
         });
 
-        $dispatcher->addListener(ChainDataDecodedEvent::class, function (ChainDataDecodedEvent $event) use (&$decodedTriggered) {
+        $dispatcher->addListener(ChainDataDecodedEvent::class, function (ChainDataDecodedEvent $event) use (&$decodedTriggered): void {
             $decodedTriggered = true;
         });
 
-        $dispatcher->addListener(ChainDataEncodedEvent::class, function (ChainDataEncodedEvent $event) use (&$encodedTriggered) {
+        $dispatcher->addListener(ChainDataEncodedEvent::class, function (ChainDataEncodedEvent $event) use (&$encodedTriggered): void {
             $encodedTriggered = true;
         });
 
@@ -341,7 +334,7 @@ class ChainProtocolTest extends TestCase
 
             public static function decode(string $buffer, ConnectionInterface $connection): string
             {
-                return "decoded:$buffer";
+                return "decoded:{$buffer}";
             }
 
             public static function encode($buffer, ConnectionInterface $connection): string
@@ -351,8 +344,7 @@ class ChainProtocolTest extends TestCase
         };
 
         // 创建模拟连接对象
-        $connection = $this->createMock(TcpConnection::class);
-        $connection->method('getStatus')->willReturn(TcpConnection::STATUS_ESTABLISHED);
+        $connection = $this->createMock(ConnectionInterface::class);
 
         // 设置解码链
         Container::$decodeProtocols = [get_class($mockProtocol)];
@@ -378,7 +370,7 @@ class ChainProtocolTest extends TestCase
 
             public static function decode(string $buffer, ConnectionInterface $connection): string
             {
-                return "udp-decoded:$buffer";
+                return "udp-decoded:{$buffer}";
             }
 
             public static function encode($buffer, ConnectionInterface $connection): string
@@ -388,7 +380,7 @@ class ChainProtocolTest extends TestCase
         };
 
         // 创建模拟连接对象
-        $connection = $this->createMock(UdpConnection::class);
+        $connection = $this->createMock(ConnectionInterface::class);
 
         // 设置解码链
         Container::$decodeProtocols = [get_class($mockProtocol)];

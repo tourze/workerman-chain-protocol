@@ -14,8 +14,7 @@ class ChainDataInputEvent extends Event
         private readonly string $buffer,
         private int $length,
         private readonly ConnectionInterface $connection,
-    )
-    {
+    ) {
     }
 
     public function getConnection(): ConnectionInterface

@@ -1,11 +1,20 @@
 # Workerman 链式协议
 
-[![最新版本](https://img.shields.io/packagist/v/tourze/workerman-chain-protocol.svg?style=flat-square)](https://packagist.org/packages/tourze/workerman-chain-protocol)
-[![开源协议](https://img.shields.io/github/license/tourze/php-monorepo.svg?style=flat-square)](LICENSE)
+[![最新版本](https://img.shields.io/packagist/v/tourze/workerman-chain-protocol.svg?style=flat-square)]
+(https://packagist.org/packages/tourze/workerman-chain-protocol)
+[![PHP 版本](https://img.shields.io/packagist/php-v/tourze/workerman-chain-protocol.svg?style=flat-square)]
+(composer.json)
+[![许可证](https://img.shields.io/github/license/tourze/php-monorepo.svg?style=flat-square)]
+(LICENSE)
+[![构建状态](https://img.shields.io/github/actions/workflow/status/tourze/php-monorepo/ci.yml?style=flat-square)]
+(https://github.com/tourze/php-monorepo/actions)
+[![代码覆盖率](https://img.shields.io/codecov/c/github/tourze/php-monorepo.svg?style=flat-square)]
+(https://codecov.io/gh/tourze/php-monorepo)
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-Workerman的链式协议处理库。该包允许您创建一系列协议解析器，以在Workerman连接中解码和编码数据。
+Workerman的链式协议处理库。该包允许您创建一系列协议解析器，
+以在Workerman连接中解码和编码数据。
 
 ## 功能特性
 
@@ -63,6 +72,84 @@ $worker->onMessage = function($connection, $data) {
 };
 
 Worker::runAll();
+```
+
+## 依赖组件
+
+本包需要：
+
+- PHP 8.1 或更高版本
+- workerman/workerman ^5.1
+- symfony/event-dispatcher ^7.3
+- symfony/event-dispatcher-contracts ^3
+- tourze/workerman-connection-context 0.0.*
+- psr/log ^1|^2|^3
+- phpunit/php-timer ^7.0
+
+## 高级用法
+
+### 自定义协议实现
+
+```php
+<?php
+
+use Workerman\Protocols\ProtocolInterface;
+use Workerman\Connection\ConnectionInterface;
+
+class MyCustomProtocol implements ProtocolInterface
+{
+    public static function input(string $buffer, ConnectionInterface $connection): int
+    {
+        // 返回完整数据包的长度，或者如果需要更多数据则返回0
+        return strlen($buffer) >= 4 ? unpack('N', substr($buffer, 0, 4))[1] + 4 : 0;
+    }
+
+    public static function decode(string $buffer, ConnectionInterface $connection): string
+    {
+        // 移除长度头并返回实际数据
+        return substr($buffer, 4);
+    }
+
+    public static function encode(mixed $data, ConnectionInterface $connection): string
+    {
+        // 为数据添加长度头
+        return pack('N', strlen($data)) . $data;
+    }
+}
+```
+
+### 事件处理
+
+```php
+<?php
+
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Tourze\Workerman\ChainProtocol\Event\ChainDataDecodedEvent;
+use Tourze\Workerman\ChainProtocol\Container;
+
+$eventDispatcher = new EventDispatcher();
+
+$eventDispatcher->addListener(ChainDataDecodedEvent::class, function(ChainDataDecodedEvent $event) {
+    // 记录或处理解码后的数据
+    error_log('数据已解码: ' . $event->getBuffer());
+});
+
+Container::$eventDispatcher = $eventDispatcher;
+```
+
+### 自定义日志配置
+
+```php
+<?php
+
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+use Tourze\Workerman\ChainProtocol\Container;
+
+$logger = new Logger('chain-protocol');
+$logger->pushHandler(new StreamHandler('path/to/logfile.log', Logger::DEBUG));
+
+Container::$logger = $logger;
 ```
 
 ## 贡献

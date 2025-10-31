@@ -1,19 +1,26 @@
 <?php
 
-namespace Tourze\Workerman\ChainProtocol\Tests\Unit\Event;
+namespace Tourze\Workerman\ChainProtocol\Tests\Event;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Contracts\EventDispatcher\Event;
+use Tourze\PHPUnitSymfonyUnitTest\AbstractEventTestCase;
 use Tourze\Workerman\ChainProtocol\Event\ChainDataInputEvent;
 use Workerman\Connection\ConnectionInterface;
 
-class ChainDataInputEventTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ChainDataInputEvent::class)]
+final class ChainDataInputEventTest extends AbstractEventTestCase
 {
     private ConnectionInterface $connection;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->connection = $this->createStub(ConnectionInterface::class);
+
+        $this->connection = self::createStub(ConnectionInterface::class);
     }
 
     public function testCanBeInstantiated(): void
@@ -26,7 +33,7 @@ class ChainDataInputEventTest extends TestCase
     {
         $buffer = 'input data';
         $event = new ChainDataInputEvent($buffer, 50, $this->connection);
-        
+
         $this->assertEquals($buffer, $event->getBuffer());
     }
 
@@ -34,7 +41,7 @@ class ChainDataInputEventTest extends TestCase
     {
         $length = 75;
         $event = new ChainDataInputEvent('test', $length, $this->connection);
-        
+
         $this->assertEquals($length, $event->getLength());
     }
 
@@ -42,7 +49,7 @@ class ChainDataInputEventTest extends TestCase
     {
         $event = new ChainDataInputEvent('test', 100, $this->connection);
         $newLength = 200;
-        
+
         $event->setLength($newLength);
         $this->assertEquals($newLength, $event->getLength());
     }
@@ -50,22 +57,22 @@ class ChainDataInputEventTest extends TestCase
     public function testGetConnection(): void
     {
         $event = new ChainDataInputEvent('test', 50, $this->connection);
-        
+
         $this->assertSame($this->connection, $event->getConnection());
     }
 
     public function testIsEvent(): void
     {
         $event = new ChainDataInputEvent('test', 50, $this->connection);
-        
-        $this->assertInstanceOf(\Symfony\Contracts\EventDispatcher\Event::class, $event);
+
+        $this->assertInstanceOf(Event::class, $event);
     }
 
     public function testBufferIsReadonly(): void
     {
         $buffer = 'readonly buffer';
         $event = new ChainDataInputEvent($buffer, 50, $this->connection);
-        
+
         $this->assertEquals($buffer, $event->getBuffer());
     }
 }
